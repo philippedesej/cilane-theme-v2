@@ -33,17 +33,26 @@ function primer_child_register_sidebars() {
 	$sidebars = (array) apply_filters(
 		'primer_sidebars',
 		array(
-			'sidebar-what-is-cilane-contextual' => array(
-				'name'          => esc_html__( 'Contextual What is cilane Sidebar', 'primer' ),
-				'description'   => esc_html__( 'for ...', 'primer' ),
-				'before_widget' => '<aside id="%1$s" class="widget %2$s">',
-				'after_widget'  => '</aside>',
-				'before_title'  => '<h4 class="widget-title">',
-				'after_title'   => '</h4>',
-			),
+            'sidebar-what-is-cilane-contextual' => array(
+              'name'          => esc_html__( 'Contextual What is cilane Sidebar', 'primer' ),
+              'description'   => esc_html__( 'for ...', 'primer' ),
+              'before_widget' => '<aside id="%1$s" class="widget %2$s">',
+              'after_widget'  => '</aside>',
+              'before_title'  => '<h4 class="widget-title">',
+              'after_title'   => '</h4>',
+            ),
 
             'sidebar-associations-contextual' => array(
                 'name'          => esc_html__( 'Contextual Associations Sidebar', 'primer' ),
+                'description'   => esc_html__( 'for ...', 'primer' ),
+                'before_widget' => '<aside id="%1$s" class="widget %2$s">',
+                'after_widget'  => '</aside>',
+                'before_title'  => '<h4 class="widget-title">',
+                'after_title'   => '</h4>',
+            ),
+
+            'sidebar-archives-contextual' => array(
+                'name'          => esc_html__( 'Contextual Archives Sidebar', 'primer' ),
                 'description'   => esc_html__( 'for ...', 'primer' ),
                 'before_widget' => '<aside id="%1$s" class="widget %2$s">',
                 'after_widget'  => '</aside>',
@@ -60,16 +69,8 @@ function primer_child_register_sidebars() {
                 'after_title'   => '</h4>',
             ),
 
-            'sidebar-Jugendaustausch-contextual' => array(
-                'name'          => esc_html__( 'Contextual Jugendaustausch Sidebar', 'primer' ),
-                'description'   => esc_html__( 'for ...', 'primer' ),
-                'before_widget' => '<aside id="%1$s" class="widget %2$s">',
-                'after_widget'  => '</aside>',
-                'before_title'  => '<h4 class="widget-title">',
-                'after_title'   => '</h4>',
-            ),
-
-            'sidebar-Articles-contextual' => array(
+            'sidebar-articles-contextual' => array(
+                'id'            => "sidebar-articles-contextual",
                 'name'          => esc_html__( 'Contextual Articles Sidebar', 'primer' ),
                 'description'   => esc_html__( 'for ...', 'primer' ),
                 'before_widget' => '<aside id="%1$s" class="widget %2$s">',
@@ -86,6 +87,16 @@ function primer_child_register_sidebars() {
                 'before_title'  => '<h4 class="widget-title">',
                 'after_title'   => '</h4>',
             ),
+			
+            'sidebar-jugendaustausch-contextual' => array(
+              'id'            => "sidebar-jugendaustausch-contextual",
+              'name'          => esc_html__( 'Contextual Jugendaustausch Sidebar', 'primer' ),
+              'description'   => esc_html__( 'add a menu here', 'primer' ),
+              'before_widget' => '<aside id="%1$s" class="widget %2$s">',
+              'after_widget'  => '</aside>',
+              'before_title'  => '<h4 class="widget-title">',
+              'after_title'   => '</h4>',
+          )
 		)
 	);
 
@@ -106,6 +117,7 @@ add_action( 'widgets_init', 'primer_child_register_sidebars' );
 /**
  * Events
  */
+/*
 add_filter( 'tribe_events_pre_get_posts', 'redirect_from_events' );
 function redirect_from_events( $query ) {
   if ( is_user_logged_in() )
@@ -132,6 +144,7 @@ function redirect_from_events( $query ) {
   wp_safe_redirect( $url );
   exit;
 }
+
 add_filter( 'posts_where', 'restrict_events', 100 );
 function restrict_events( $where_sql ) {
   global $wpdb;
@@ -141,6 +154,8 @@ function restrict_events( $where_sql ) {
   return $wpdb->prepare( " $where_sql AND $wpdb->posts.post_type <> %s ", Tribe__Events__Main::POSTTYPE );
 }
 
+*/
+
   //remove Archive mention https://theeventscalendar.com/knowledgebase/k/remove-archives-from-calendar-page-title/
 add_filter( 'get_the_archive_title', function ( $title ) {
   if ( is_post_type_archive( 'tribe_events' ) ) {
@@ -149,10 +164,97 @@ add_filter( 'get_the_archive_title', function ( $title ) {
   return $title;    
 });
 
+function redirect_to_login() {
+    if ( ! is_user_logged_in() && ( is_singular( 'tribe_events' ) || is_post_type_archive( 'tribe_events' ) ) ) {
+        wp_redirect( home_url( '/login/?redirect_to=' . urlencode( get_permalink() ) ) );
+        exit;
+    }
+}
+add_action( 'template_redirect', 'redirect_to_login' );
+
+
+
+/**
+ * Add a list of clickable category links below the event
+ * search bar.
+ * https://theeventscalendar.com/knowledgebase/add-a-list-of-category-links-below-the-search-bar-2/
+ *
+ * Can be easily styled using the following selector:
+ *
+ * .the-events-calendar-category-list
+ */
+add_action(
+    'tribe_template_after_include:events/v2/components/events-bar',
+    function() {
+        $terms = get_terms( [ 'taxonomy' => Tribe__Events__Main::TAXONOMY ] );
+ 
+        if ( empty( $terms ) || is_wp_error( $terms ) ) {
+            return;
+        }
+ 
+        echo '<div class="the-events-calendar-category-list"><ol>';
+ 
+        foreach ( $terms as $single_term ) {
+            $url  = esc_url( get_term_link( $single_term ) );
+            $name = esc_html( get_term_field( 'name', $single_term ) );
+ 
+            echo "<li><a href='$url'>$name</a> </li>";
+        }
+ 
+        echo '</ol></div>';
+    }
+);
+
+/**
+ * Force canonical/default language URLs
+ * If you want category links to always point to the default language
+ * This:
+ * Overrides generated category links
+ * Forces them into your original structure
+ */
+add_filter( 'term_link', function( $url, $term, $taxonomy ) {
+    if ( $taxonomy === 'tribe_events_cat' ) {
+        return home_url( '/events/category/' . $term->slug . '/' );
+    }
+    return $url;
+}, 10, 3 );
+
+
 /**
  * end Events
  */
 
+/**
+ * WooCommerce redirect
+ */
+
+function redirect_wc_to_login() {
+    if ( ! is_user_logged_in() && ( is_woocommerce() || is_shop() || is_cart() || is_checkout() || is_product() ) ) {
+        wp_redirect( home_url( '/login/?redirect_to=' . urlencode( get_permalink() ) ) );
+        exit;
+    }
+}
+add_action( 'template_redirect', 'redirect_wc_to_login' );
+
+/**
+ * end WooCommerce
+ */
+
+/**
+ * KnowledgeBase redirect
+ */
+
+function redirect_kb_to_login() {
+    if( !is_user_logged_in() && strpos( $_SERVER['REQUEST_URI'], '/documents/' ) !== false ) {
+        wp_redirect( home_url( '/login/?redirect_to=' . urlencode( $_SERVER['REQUEST_URI'] ) ) );
+        exit;
+    }
+}
+add_action( 'template_redirect', 'redirect_kb_to_login' );
+
+/**
+ *end KnowledgeBase
+ */
 
 
  //no author in posts
@@ -166,3 +268,4 @@ add_filter( 'get_the_archive_title', function ( $title ) {
 //     )
 //   );
 // }
+
